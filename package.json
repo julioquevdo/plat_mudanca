@@ -1,0 +1,22 @@
+{
+  "name": "plat_mudanca",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Ferramenta de Apoio a Compromissos Pessoais com design não-punitivo",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "migrate": "node migrate.js"
+  },
+  "keywords": [
+    "habits",
+    "neurodivergent",
+    "tracker"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "postgres": "^3.4.9"
+  }
+}

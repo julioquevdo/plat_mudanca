@@ -1,0 +1,230 @@
+/* =============================================================
+   animations.css — Micro-animações e Transições
+   ============================================================= */
+
+/* ─────────────────────────────────────────────
+   Keyframes
+   ───────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; transform: translateX(12px); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.08); }
+}
+
+@keyframes celebrate {
+  0%   { transform: scale(1) rotate(0deg); }
+  25%  { transform: scale(1.18) rotate(-6deg); }
+  50%  { transform: scale(1.14) rotate(5deg); }
+  75%  { transform: scale(1.08) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes growUp {
+  from { transform: scaleY(0); transform-origin: bottom; }
+  to   { transform: scaleY(1); transform-origin: bottom; }
+}
+
+@keyframes dotPop {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(126,184,154,0.15); }
+  50%       { box-shadow: 0 0 18px rgba(126,184,154,0.3); }
+}
+
+/* ─────────────────────────────────────────────
+   Page Transitions
+   ───────────────────────────────────────────── */
+.page-enter {
+  animation: slideUp 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+#router-outlet > * {
+  animation: fadeIn 0.2s ease forwards;
+}
+
+/* ─────────────────────────────────────────────
+   Check Button
+   ───────────────────────────────────────────── */
+.btn-check-click {
+  animation: pulse 0.25s ease;
+}
+
+/* Celebração ao cumprir */
+.check-celebrate {
+  animation: celebrate 0.5s ease;
+}
+
+/* ─────────────────────────────────────────────
+   Streak Badge pop
+   ───────────────────────────────────────────── */
+.streak-pop {
+  animation: pulse 0.4s ease;
+}
+
+/* ─────────────────────────────────────────────
+   XP Progress Bar (shimmer quando anima)
+   ───────────────────────────────────────────── */
+.nivel-progress-fill.animate {
+  animation: shimmer 2.5s linear infinite;
+  background: linear-gradient(
+    90deg,
+    var(--color-secondary) 0%,
+    var(--color-primary) 40%,
+    var(--color-secondary) 80%,
+    var(--color-primary) 100%
+  );
+  background-size: 200% auto;
+}
+
+/* ─────────────────────────────────────────────
+   Heatmap cells — staggered reveal
+   ───────────────────────────────────────────── */
+.heatmap-cell {
+  animation: dotPop 0.2s ease both;
+}
+
+.heatmap-week:nth-child(1)  .heatmap-cell { animation-delay: 0ms; }
+.heatmap-week:nth-child(5)  .heatmap-cell { animation-delay: 30ms; }
+.heatmap-week:nth-child(10) .heatmap-cell { animation-delay: 60ms; }
+.heatmap-week:nth-child(20) .heatmap-cell { animation-delay: 100ms; }
+.heatmap-week:nth-child(35) .heatmap-cell { animation-delay: 150ms; }
+.heatmap-week:nth-child(53) .heatmap-cell { animation-delay: 200ms; }
+
+/* ─────────────────────────────────────────────
+   Bar chart grow animation
+   ───────────────────────────────────────────── */
+.dow-bar {
+  animation: growUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.dow-bar-group:nth-child(1) .dow-bar { animation-delay: 0ms; }
+.dow-bar-group:nth-child(2) .dow-bar { animation-delay: 50ms; }
+.dow-bar-group:nth-child(3) .dow-bar { animation-delay: 100ms; }
+.dow-bar-group:nth-child(4) .dow-bar { animation-delay: 150ms; }
+.dow-bar-group:nth-child(5) .dow-bar { animation-delay: 200ms; }
+.dow-bar-group:nth-child(6) .dow-bar { animation-delay: 250ms; }
+.dow-bar-group:nth-child(7) .dow-bar { animation-delay: 300ms; }
+
+/* ─────────────────────────────────────────────
+   Card hover lift
+   ───────────────────────────────────────────── */
+.card-lift {
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+}
+
+/* ─────────────────────────────────────────────
+   Streak "novo streak" message
+   ───────────────────────────────────────────── */
+.streak-new-msg {
+  animation: slideDown 0.4s ease, fadeOut 0.3s 3s forwards;
+  color: var(--color-primary);
+  font-size: var(--font-xs);
+  font-weight: 500;
+}
+
+/* ─────────────────────────────────────────────
+   Commitment card appears in list
+   ───────────────────────────────────────────── */
+.commitment-card {
+  animation: slideUp 0.25s ease both;
+}
+
+.commitment-card:nth-child(1) { animation-delay: 0ms; }
+.commitment-card:nth-child(2) { animation-delay: 40ms; }
+.commitment-card:nth-child(3) { animation-delay: 80ms; }
+.commitment-card:nth-child(4) { animation-delay: 120ms; }
+.commitment-card:nth-child(5) { animation-delay: 160ms; }
+.commitment-card:nth-child(6) { animation-delay: 200ms; }
+
+/* ─────────────────────────────────────────────
+   Skeleton Loading
+   ───────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    rgba(255,255,255,0.04) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 400% auto;
+  animation: shimmer 1.5s linear infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-card {
+  height: 120px;
+  border-radius: var(--radius-lg);
+}
+
+/* ─────────────────────────────────────────────
+   Level Up glow
+   ───────────────────────────────────────────── */
+.level-up-glow {
+  animation: glowPulse 1.5s ease 3;
+  border-radius: var(--radius-full);
+}
+
+/* ─────────────────────────────────────────────
+   Dropdown fade-in
+   ───────────────────────────────────────────── */
+.dropdown-content {
+  animation: slideDown 0.15s ease;
+}
+
+/* ─────────────────────────────────────────────
+   Reduced motion — acessibilidade
+   ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
