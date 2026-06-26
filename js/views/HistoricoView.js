@@ -532,12 +532,15 @@ export const HistoricoView = {
    * Agrupa os checks por dia da semana (0=Dom .. 6=Sab) e calcula a taxa de
    * cumprimento de cada um, marcando o de menor taxa como "isPior" (ponto
    * de atencao). Dias pausados sao ignorados no calculo.
+   *
+   * O dia atual e excluido do calculo para evitar distorcer a taxa do dia em andamento.
    */
   _calcularPadraoDiaSemana(checks) {
     const buckets = WEEKDAY_LABELS.map(label => ({ label, cumpridos: 0, total: 0 }));
+    const todayStr = formatDateLocal(new Date());
 
     checks
-      .filter(c => c.status !== CHECK_STATUS.PAUSADO)
+      .filter(c => c.status !== CHECK_STATUS.PAUSADO && c.data !== todayStr)
       .forEach(c => {
         const weekday = new Date(`${c.data}T00:00:00`).getDay();
         buckets[weekday].total++;
@@ -545,19 +548,22 @@ export const HistoricoView = {
       });
 
     const comDados = buckets.filter(b => b.total > 0);
-    const piorDia = comDados.length
-      ? comDados.reduce((pior, atual) => {
-          const taxaAtual = atual.cumpridos / atual.total;
-          const taxaPior = pior.cumpridos / pior.total;
-          return taxaAtual < taxaPior ? atual : pior;
-        })
-      : null;
+    const taxas = comDados.map(b => b.cumpridos / b.total);
+    const minTaxa = taxas.length ? Math.min(...taxas) : null;
+    const maxTaxa = taxas.length ? Math.max(...taxas) : null;
 
-    return buckets.map(b => ({
-      ...b,
-      taxa: b.total ? Math.round((b.cumpridos / b.total) * 100) : null,
-      isPior: piorDia ? b.label === piorDia.label && b.total > 0 : false,
-    }));
+    // So existe "pior dia" se houver variacao real nas taxas (nao estao todos empatados)
+    const temVariacao = minTaxa !== null && maxTaxa !== null && minTaxa < maxTaxa;
+
+    return buckets.map(b => {
+      const taxa = b.total ? Math.round((b.cumpridos / b.total) * 100) : null;
+      const taxaReal = b.total ? b.cumpridos / b.total : null;
+      return {
+        ...b,
+        taxa,
+        isPior: temVariacao && taxaReal === minTaxa,
+      };
+    });
   },
 
   // -----------------------------------------------------------------------
