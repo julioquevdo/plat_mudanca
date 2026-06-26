@@ -112,9 +112,12 @@ export const HomeView = {
                       <div class="card-body">
                         <div class="card-details">
                           <div class="card-title-row">
-                            <span class="category-indicator" style="background-color: ${comp.categorias?.cor || '#6A9F7E'}"></span>
-                            <h3>${comp.nome}</h3>
-                          </div>
+                             <span class="category-indicator" style="background-color: ${comp.categorias?.cor || '#6A9F7E'}"></span>
+                             <div class="card-title-group">
+                               ${comp.meta ? `<p class="card-meta-label">${comp.meta}</p>` : ''}
+                               <h3 class="card-comp-name ${comp.meta ? 'is-secondary' : ''}">${comp.nome}</h3>
+                             </div>
+                           </div>
                           <p class="min-unit"><strong>Unidade minima:</strong> ${comp.unidade_minima}</p>
                           ${comp.unidade_emergencia ? `<p class="emergency-unit"><strong>Em dia dificil:</strong> ${comp.unidade_emergencia}</p>` : ''}
                           ${isDiaRuim ? '<span class="bad-day-pill">Dia dificil acolhido</span>' : ''}

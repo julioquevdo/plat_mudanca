@@ -70,6 +70,12 @@ export const CompromissoView = {
                 <span class="input-help">Uma versao ainda menor para dias especialmente dificeis.</span>
               </div>
 
+              <div class="form-group">
+                <label for="comp-meta">Meta Real (opcional)</label>
+                <input type="text" id="comp-meta" placeholder="Ex: Ler 30 minutos por dia" maxlength="200" />
+                <span class="input-help">O que voce quer de fato conquistar com esse compromisso. Aparece em destaque no card da Home.</span>
+              </div>
+
               <div class="form-row">
                 <div class="form-group">
                   <label for="comp-categoria">Categoria</label>
@@ -236,8 +242,9 @@ export const CompromissoView = {
               </div>
 
               <div class="form-group">
-                <label for="edit-meta">Meta Ideal (Opcional)</label>
-                <input type="text" id="edit-meta" />
+                <label for="edit-meta">Meta Real (opcional)</label>
+                <input type="text" id="edit-meta" placeholder="Ex: Ler 30 minutos por dia" maxlength="200" />
+                <span class="input-help">O que voce quer de fato conquistar com esse compromisso. Aparece em destaque no card da Home.</span>
               </div>
 
               <div class="form-row">
@@ -320,6 +327,7 @@ export const CompromissoView = {
           nome: document.getElementById('comp-nome').value,
           unidade_minima: document.getElementById('comp-unidade-minima').value,
           unidade_emergencia: document.getElementById('comp-unidade-emergencia').value || null,
+          meta: document.getElementById('comp-meta').value || null,
           frequencia_tipo: freqTipo,
           frequencia_dias: freqDias,
           frequencia_vezes: freqVezes,
