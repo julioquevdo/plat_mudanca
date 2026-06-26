@@ -1,6 +1,8 @@
 // Layer 4 — Controllers
 // Orchestrates the history/heatmap view.
 
+import { todayLocal, formatDateLocal } from '../config/dateUtils.js';
+
 import { CompromissoModel } from '../models/CompromissoModel.js';
 import { CheckModel } from '../models/CheckModel.js';
 import { DiarioModel } from '../models/DiarioModel.js';
@@ -21,10 +23,10 @@ export const HistoricoController = {
       HistoricoController._categorias = await CategoriaModel.listAll();
 
       // Default: last 90 days
-      const to = new Date().toISOString().split('T')[0];
+      const to = todayLocal();
       const fromDate = new Date();
       fromDate.setDate(fromDate.getDate() - 90);
-      const from = fromDate.toISOString().split('T')[0];
+      const from = formatDateLocal(fromDate);
 
       const allChecks = await CheckModel.listByDateRange(user.id, filters.from ?? from, filters.to ?? to);
 
@@ -59,8 +61,8 @@ export const HistoricoController = {
   async handleExport() {
     try {
       const user = await AuthService.getUser();
-      const to = new Date().toISOString().split('T')[0];
-      const from = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const to = todayLocal();
+      const from = formatDateLocal(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
       const checks = await CheckModel.listByDateRange(user.id, from, to);
       ExportService.exportChecksCSV(checks, HistoricoController._compromissos);
     } catch (e) {
@@ -70,8 +72,8 @@ export const HistoricoController = {
 
   async handleExportDiario() {
     try {
-      const to = new Date().toISOString().split('T')[0];
-      const from = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const to = todayLocal();
+      const from = formatDateLocal(new Date(Date.now() - 365 * 24 * 60 * 60 * 1000));
       const entries = await DiarioModel.listByDateRange(from, to);
       ExportService.exportDiarioCSV(entries);
     } catch (e) {

@@ -2,6 +2,7 @@
 // Orchestrates the home/dashboard view: checks for today, streak/XP updates.
 
 import { CompromissoModel } from '../models/CompromissoModel.js';
+import { todayLocal } from '../config/dateUtils.js';
 import { CheckModel } from '../models/CheckModel.js';
 import { StreakService } from '../services/StreakService.js';
 import { XPService } from '../services/XPService.js';
@@ -134,7 +135,7 @@ export const HomeController = {
   },
 
   _today() {
-    return new Date().toISOString().split('T')[0];
+    return todayLocal();
   },
 
   async _buildTreeStats(compromissos) {

@@ -1,6 +1,8 @@
 // Layer 4 - Controllers
 // Orchestrates planning/load rhythm views: past days, future expectations, weekly/monthly percentages.
 
+import { todayLocal, formatDateLocal } from '../config/dateUtils.js';
+
 import { CompromissoModel } from '../models/CompromissoModel.js';
 import { CheckModel } from '../models/CheckModel.js';
 import { AuthService } from '../services/AuthService.js';
@@ -13,10 +15,10 @@ export const RitmoController = {
       const user = await AuthService.getUser();
       const compromissos = await CompromissoModel.listAll();
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocal();
       const fromDate = new Date();
       fromDate.setDate(fromDate.getDate() - 180);
-      const from = fromDate.toISOString().split('T')[0];
+      const from = formatDateLocal(fromDate);
 
       const checks = await CheckModel.listByDateRange(user.id, from, today);
 

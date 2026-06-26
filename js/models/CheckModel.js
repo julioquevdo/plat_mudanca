@@ -4,6 +4,7 @@
 // and by the UNIQUE(compromisso_id, data) constraint.
 
 import { supabase } from '../config/supabase.js';
+import { formatDateLocal } from '../config/dateUtils.js';
 
 export const CheckModel = {
   /**
@@ -89,7 +90,7 @@ export const CheckModel = {
   async listRecent(compromisso_id, days = 90) {
     const from = new Date();
     from.setDate(from.getDate() - days);
-    const fromStr = from.toISOString().split('T')[0];
+    const fromStr = formatDateLocal(from);
     const { data, error } = await supabase
       .from('checks')
       .select('*')

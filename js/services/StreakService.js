@@ -8,6 +8,7 @@
 //   → no "0" is shown on the day of the failure (RN04.1)
 
 import { CHECK_STATUS, STREAK_ESTADO } from '../config/constants.js';
+import { formatDateLocal } from '../config/dateUtils.js';
 
 export const StreakService = {
   /**
@@ -93,6 +94,6 @@ export const StreakService = {
   _offsetDate(dateStr, days) {
     const d = new Date(dateStr + 'T00:00:00');
     d.setDate(d.getDate() + days);
-    return d.toISOString().split('T')[0];
+    return formatDateLocal(d);
   },
 };

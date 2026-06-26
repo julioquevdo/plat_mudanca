@@ -2,6 +2,7 @@
 // Renders commitment management: list, create form, edit inline modal, pause controls.
 
 import { FREQUENCIA_TIPOS, DIAS_SEMANA } from '../config/constants.js';
+import { todayLocal } from '../config/dateUtils.js';
 
 export const CompromissoView = {
   showLoading() {
@@ -194,7 +195,7 @@ export const CompromissoView = {
                         <hr />
                         <div class="pause-form">
                           <label for="pause-date-${comp.id}">Retomar em (Data Obrigatória):</label>
-                          <input type="date" id="pause-date-${comp.id}" min="${new Date().toISOString().split('T')[0]}" required />
+                          <input type="date" id="pause-date-${comp.id}" min="${todayLocal()}" required />
                           <button class="btn btn-secondary btn-save-pause" data-id="${comp.id}">Confirmar Pausa</button>
                         </div>
                       </div>

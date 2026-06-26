@@ -1,4 +1,6 @@
 // Layer 3 — Services
+
+import { todayLocal } from '../config/dateUtils.js';
 // CSV export of commitment history and diary entries (US13).
 
 export const ExportService = {
@@ -19,7 +21,7 @@ export const ExportService = {
     ]);
     ExportService._download(
       ExportService._buildCSV(headers, rows),
-      `compromissos_historico_${new Date().toISOString().split('T')[0]}.csv`,
+      `compromissos_historico_${todayLocal()}.csv`,
     );
   },
 
@@ -31,7 +33,7 @@ export const ExportService = {
     const rows = entries.map(e => [e.data, e.conteudo]);
     ExportService._download(
       ExportService._buildCSV(headers, rows),
-      `diario_${new Date().toISOString().split('T')[0]}.csv`,
+      `diario_${todayLocal()}.csv`,
     );
   },
 

@@ -2,6 +2,7 @@
 // Renders planning rhythm: daily expectations, past completion, weekly/monthly normalized percentages.
 
 import { CHECK_STATUS } from '../config/constants.js';
+import { todayLocal, formatDateLocal } from '../config/dateUtils.js';
 
 export const RitmoView = {
   showLoading() {
@@ -133,7 +134,7 @@ export const RitmoView = {
   },
 
   _calcularRitmo(comps, checks, fromDate, toDate) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
     const dayDates = RitmoView._dateRange(RitmoView._addDays(today, -7), RitmoView._addDays(today, 14));
     const days = dayDates.map(date => RitmoView._summarizeDay(date, comps, checks, today));
 
@@ -619,10 +620,10 @@ export const RitmoView = {
     const end = new Date(`${toDate}T00:00:00`);
     const curr = new Date(start);
     while (curr <= end) {
-      const weekStart = curr.toISOString().split('T')[0];
+      const weekStart = formatDateLocal(curr);
       const weekEndDate = new Date(curr);
       weekEndDate.setDate(weekEndDate.getDate() + 6);
-      const weekEnd = weekEndDate.toISOString().split('T')[0];
+      const weekEnd = formatDateLocal(weekEndDate);
       ranges.push({
         start: weekStart < fromDate ? fromDate : weekStart,
         end: weekEnd > toDate ? toDate : weekEnd,
@@ -640,9 +641,9 @@ export const RitmoView = {
     const end = new Date(`${toDate}T00:00:00`);
     const curr = new Date(start);
     while (curr <= end) {
-      const monthStart = curr.toISOString().split('T')[0];
+      const monthStart = formatDateLocal(curr);
       const monthEndDate = new Date(curr.getFullYear(), curr.getMonth() + 1, 0);
-      const monthEnd = monthEndDate.toISOString().split('T')[0];
+      const monthEnd = formatDateLocal(monthEndDate);
       ranges.push({
         start: monthStart < fromDate ? fromDate : monthStart,
         end: monthEnd > toDate ? toDate : monthEnd,
@@ -664,7 +665,7 @@ export const RitmoView = {
     const curr = new Date(`${start}T00:00:00`);
     const endDate = new Date(`${end}T00:00:00`);
     while (curr <= endDate) {
-      dates.push(curr.toISOString().split('T')[0]);
+      dates.push(formatDateLocal(curr));
       curr.setDate(curr.getDate() + 1);
     }
     return dates;
@@ -673,7 +674,7 @@ export const RitmoView = {
   _addDays(dateStr, amount) {
     const d = new Date(`${dateStr}T00:00:00`);
     d.setDate(d.getDate() + amount);
-    return d.toISOString().split('T')[0];
+    return formatDateLocal(d);
   },
 
   _formatDateShort(dateStr) {

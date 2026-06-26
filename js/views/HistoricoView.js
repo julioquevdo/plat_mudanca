@@ -2,6 +2,7 @@
 // Renders retrospective history: filters, self-comparison, fall points, streaks,
 // weekday patterns, heatmaps, timeline (paginated) and exports.
 //
+import { formatDateLocal } from '../config/dateUtils.js';
 // Layout, de cima para baixo:
 //   1. Header + filtros
 //   2. Resumo do periodo
@@ -568,7 +569,7 @@ export const HistoricoView = {
     const curr = new Date(`${start}T00:00:00`);
     const endDate = new Date(`${end}T00:00:00`);
     while (curr <= endDate) {
-      dates.push(curr.toISOString().split('T')[0]);
+      dates.push(formatDateLocal(curr));
       curr.setDate(curr.getDate() + 1);
     }
     return dates;
