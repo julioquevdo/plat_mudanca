@@ -2874,7 +2874,6 @@ body.theme-dark {
 @media (max-width: 1024px) {
   .review-grid {
     grid-template-columns: 1fr;
-    gap: var(--space-6);
   }
 }
 
