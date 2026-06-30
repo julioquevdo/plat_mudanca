@@ -3,6 +3,7 @@
 
 import { XPService } from '../services/XPService.js';
 import { SENSACOES, CHECK_STATUS, STREAK_ESTADO, MARCOS_VOLUME } from '../config/constants.js';
+import { FrequencyUtils } from '../config/frequencyUtils.js';
 
 export const HomeView = {
   showLoading() {
@@ -33,6 +34,7 @@ export const HomeView = {
 
   render({
     compromissos,
+    weeklyStatus = {},
     todayChecks,
     today,
     diarioEntry,
@@ -47,6 +49,19 @@ export const HomeView = {
   }) {
     HomeView._closeActionMenu();
     const app = document.getElementById('router-outlet');
+
+    const previstos = compromissos.filter(comp => {
+      if (FrequencyUtils.isExpectedOnDate(comp, today)) return true;
+      if (comp.frequencia_tipo === 'xVezesSemana' && !weeklyStatus[comp.id]) return true;
+      return false;
+    });
+
+    const disponiveis = compromissos.filter(comp => {
+      if (FrequencyUtils.isExpectedOnDate(comp, today)) return false;
+      if (comp.frequencia_tipo === 'xVezesSemana' && !weeklyStatus[comp.id]) return false;
+      return true;
+    });
+
     const totalXP = compromissos.reduce((acc, c) => acc + (c.xp_total || 0), 0);
     const nivelInfo = XPService.getNivel(totalXP);
     const progressPercent = XPService.getProgressoNivel(totalXP);
@@ -90,89 +105,30 @@ export const HomeView = {
         ${HomeView._renderTreePanel(treeStats)}
 
         <div class="dashboard-grid">
-          <section class="commitments-section">
-            <h2>Compromissos para Hoje</h2>
-            ${compromissos.length === 0 ? `
-              <div class="empty-card glass">
-                <p>Nenhum compromisso cadastrado para hoje.</p>
-                <a href="#compromissos" class="btn btn-secondary">Cadastrar Compromisso</a>
-              </div>
-            ` : `
-              <div class="commitments-list">
-                ${compromissos.map(comp => {
-                  const check = todayChecks[comp.id];
-                  const isChecked = !!check;
-                  const isCumprido = isChecked && check.status === CHECK_STATUS.CUMPRIDO;
-                  const isNaoCumprido = isChecked && check.status === CHECK_STATUS.NAO_CUMPRIDO;
-                  const isDiaRuim = isCumprido && check.dia_ruim;
-                  const isPausado = comp.pausado_ate && new Date(comp.pausado_ate) >= new Date(today);
+          <div class="commitments-sections">
+            <section class="commitments-section">
+              <h2>Previstos para Hoje</h2>
+              ${previstos.length === 0 ? `
+                <div class="empty-card glass">
+                  <p>Tudo cumprido ou nada previsto para hoje!</p>
+                  <a href="#compromissos" class="btn btn-secondary">Cadastrar Compromisso</a>
+                </div>
+              ` : `
+                <div class="commitments-list">
+                  ${previstos.map(comp => HomeView._renderCompCard(comp, todayChecks[comp.id], today)).join('')}
+                </div>
+              `}
+            </section>
 
-                  return `
-                    <div class="commitment-card glass ${isChecked ? `status-${check.status}` : ''} ${isPausado ? 'status-pausado' : ''}" id="card-${comp.id}">
-                      <div class="card-body">
-                        <div class="card-details">
-                          <div class="card-title-row">
-                             <span class="category-indicator" style="background-color: ${comp.categorias?.cor || '#6A9F7E'}"></span>
-                             <div class="card-title-group">
-                               ${comp.meta ? `<p class="card-meta-label">${comp.meta}</p>` : ''}
-                               <h3 class="card-comp-name ${comp.meta ? 'is-secondary' : ''}">${comp.nome}</h3>
-                             </div>
-                           </div>
-                          <p class="min-unit"><strong>Unidade minima:</strong> ${comp.unidade_minima}</p>
-                          ${comp.unidade_emergencia ? `<p class="emergency-unit"><strong>Em dia dificil:</strong> ${comp.unidade_emergencia}</p>` : ''}
-                          ${isDiaRuim ? '<span class="bad-day-pill">Dia dificil acolhido</span>' : ''}
-                          ${comp.frase_ancoragem ? `<p class="anchoring-phrase"><em>"${comp.frase_ancoragem}"</em></p>` : ''}
-                        </div>
-
-                        <div class="streak-badge-container">
-                          ${HomeView._renderStreakBadge(comp.streak_atual, comp.streak_estado)}
-                        </div>
-
-                        <div class="card-actions">
-                          ${isPausado ? `
-                            <span class="pause-badge">Pausado ate ${new Date(`${comp.pausado_ate}T00:00:00`).toLocaleDateString('pt-BR')}</span>
-                          ` : `
-                            <button class="btn-check ${isCumprido && !isDiaRuim ? 'active' : ''}" data-id="${comp.id}" data-status="${CHECK_STATUS.CUMPRIDO}" title="Cumprido">
-                              ${isCumprido ? 'Concluido' : 'Cumpri'}
-                            </button>
-
-                            <div class="dropdown">
-                              <button class="btn-more-actions" data-id="${comp.id}" aria-label="Mais acoes">...</button>
-                            </div>
-                          `}
-                        </div>
-                      </div>
-
-                      <div class="context-expander" id="context-form-${comp.id}" style="display: none;">
-                        <hr />
-                        <div class="context-form-body">
-                          <div class="form-group">
-                            <label>Como voce se sentiu hoje?</label>
-                            <div class="feeling-selector">
-                              ${SENSACOES.map(s => {
-                                const selected = check?.sensacao === s.value;
-                                return `
-                                  <button type="button" class="btn-feeling ${selected ? 'active' : ''}" data-id="${comp.id}" data-value="${s.value}">
-                                    <span class="feeling-emoji">${s.emoji}</span>
-                                    <span class="feeling-label">${s.label}</span>
-                                  </button>
-                                `;
-                              }).join('')}
-                            </div>
-                          </div>
-                          <div class="form-group">
-                            <label for="context-text-${comp.id}">Contexto (max 200 caracteres)</label>
-                            <textarea id="context-text-${comp.id}" class="textarea-mini" maxlength="200" placeholder="Ex: choveu, dormi pouco, fiz no quarto">${check?.contexto || ''}</textarea>
-                          </div>
-                          <button class="btn btn-secondary btn-save-context" data-id="${comp.id}">Salvar Contexto</button>
-                        </div>
-                      </div>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            `}
-          </section>
+            ${disponiveis.length > 0 ? `
+              <section class="commitments-section secondary-section mt-4">
+                <h2>Disponiveis hoje</h2>
+                <div class="commitments-list">
+                  ${disponiveis.map(comp => HomeView._renderCompCard(comp, todayChecks[comp.id], today)).join('')}
+                </div>
+              </section>
+            ` : ''}
+          </div>
 
           <section class="journal-section">
             <div class="small-wins-card glass">
@@ -247,6 +203,77 @@ export const HomeView = {
       onAddVitoriaPequena,
       onDeleteVitoriaPequena,
     });
+  },
+
+  _renderCompCard(comp, check, today) {
+    const isChecked = !!check;
+    const isCumprido = isChecked && check.status === CHECK_STATUS.CUMPRIDO;
+    const isNaoCumprido = isChecked && check.status === CHECK_STATUS.NAO_CUMPRIDO;
+    const isDiaRuim = isCumprido && check.dia_ruim;
+    const isPausado = comp.pausado_ate && new Date(comp.pausado_ate) >= new Date(today);
+
+    return `
+      <div class="commitment-card glass ${isChecked ? `status-${check.status}` : ''} ${isPausado ? 'status-pausado' : ''}" id="card-${comp.id}">
+        <div class="card-body">
+          <div class="card-details">
+            <div class="card-title-row">
+               <span class="category-indicator" style="background-color: ${comp.categorias?.cor || '#6A9F7E'}"></span>
+               <div class="card-title-group">
+                 ${comp.meta ? `<p class="card-meta-label">${comp.meta}</p>` : ''}
+                 <h3 class="card-comp-name ${comp.meta ? 'is-secondary' : ''}">${comp.nome}</h3>
+               </div>
+             </div>
+            <p class="min-unit"><strong>Unidade minima:</strong> ${comp.unidade_minima}</p>
+            ${comp.unidade_emergencia ? `<p class="emergency-unit"><strong>Em dia dificil:</strong> ${comp.unidade_emergencia}</p>` : ''}
+            ${isDiaRuim ? '<span class="bad-day-pill">Dia dificil acolhido</span>' : ''}
+            ${comp.frase_ancoragem ? `<p class="anchoring-phrase"><em>"${comp.frase_ancoragem}"</em></p>` : ''}
+          </div>
+
+          <div class="streak-badge-container">
+            ${HomeView._renderStreakBadge(comp.streak_atual, comp.streak_estado)}
+          </div>
+
+          <div class="card-actions">
+            ${isPausado ? `
+              <span class="pause-badge">Pausado ate ${new Date(`${comp.pausado_ate}T00:00:00`).toLocaleDateString('pt-BR')}</span>
+            ` : `
+              <button class="btn-check ${isCumprido && !isDiaRuim ? 'active' : ''}" data-id="${comp.id}" data-status="${CHECK_STATUS.CUMPRIDO}" title="Cumprido">
+                ${isCumprido ? 'Concluido' : 'Cumpri'}
+              </button>
+
+              <div class="dropdown">
+                <button class="btn-more-actions" data-id="${comp.id}" aria-label="Mais acoes">...</button>
+              </div>
+            `}
+          </div>
+        </div>
+
+        <div class="context-expander" id="context-form-${comp.id}" style="display: none;">
+          <hr />
+          <div class="context-form-body">
+            <div class="form-group">
+              <label>Como voce se sentiu hoje?</label>
+              <div class="feeling-selector">
+                ${SENSACOES.map(s => {
+                  const selected = check?.sensacao === s.value;
+                  return `
+                    <button type="button" class="btn-feeling ${selected ? 'active' : ''}" data-id="${comp.id}" data-value="${s.value}">
+                      <span class="feeling-emoji">${s.emoji}</span>
+                      <span class="feeling-label">${s.label}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="context-text-${comp.id}">Contexto (max 200 caracteres)</label>
+              <textarea id="context-text-${comp.id}" class="textarea-mini" maxlength="200" placeholder="Ex: choveu, dormi pouco, fiz no quarto">${check?.contexto || ''}</textarea>
+            </div>
+            <button class="btn btn-secondary btn-save-context" data-id="${comp.id}">Salvar Contexto</button>
+          </div>
+        </div>
+      </div>
+    `;
   },
 
   _wireEvents({ today, todayChecks, treeStats, onCheck, onRetroativo, onSaveDiario, onAddVitoriaPequena, onDeleteVitoriaPequena }) {

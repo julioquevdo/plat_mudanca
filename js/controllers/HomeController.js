@@ -35,8 +35,19 @@ export const HomeController = {
       const totalCumpridos = await CheckModel.countCumpridosByUser(user.id);
       const treeStats = await HomeController._buildTreeStats(HomeController._compromissos);
 
+      const weeklyStatus = {};
+      for (const comp of HomeController._compromissos) {
+         if (comp.frequencia_tipo === 'xVezesSemana') {
+            const checks = await CheckModel.listRecent(comp.id, 7);
+            const range = FrequencyUtils.getCalendarWeekRange(today);
+            const met = checks.filter(c => c.data >= range.start && c.data <= range.end && (c.status === CHECK_STATUS.CUMPRIDO || c.status === CHECK_STATUS.PAUSADO)).length >= (comp.frequencia_vezes || 1);
+            weeklyStatus[comp.id] = met;
+         }
+      }
+
       HomeView.render({
         compromissos: HomeController._compromissos,
+        weeklyStatus,
         todayChecks: HomeController._todayChecks,
         today,
         diarioEntry,
