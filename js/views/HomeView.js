@@ -230,7 +230,7 @@ export const HomeView = {
           </div>
 
           <div class="streak-badge-container">
-            ${HomeView._renderStreakBadge(comp.streak_atual, comp.streak_estado)}
+            ${HomeView._renderStreakBadge(comp.streak_atual, comp.streak_estado, comp.frequencia_tipo)}
           </div>
 
           <div class="card-actions">
@@ -520,14 +520,16 @@ export const HomeView = {
     return '🌲';
   },
 
-  _renderStreakBadge(streak, estado) {
+  _renderStreakBadge(streak, estado, frequencia_tipo) {
     if (estado === STREAK_ESTADO.PENDENTE) {
       return `<span class="streak-badge status-pendente" title="Streak em pausa: cumpra amanha para manter">${streak} em pausa</span>`;
     }
     if (streak === 0) {
       return '<span class="streak-badge status-zerado">Novo streak</span>';
     }
-    return `<span class="streak-badge status-ativo">${streak} dias</span>`;
+    
+    const label = frequencia_tipo === 'xVezesSemana' ? (streak === 1 ? 'semana' : 'semanas') : (streak === 1 ? 'dia' : 'dias');
+    return `<span class="streak-badge status-ativo">${streak} ${label}</span>`;
   },
 
   _renderTreePanel(treeStats) {

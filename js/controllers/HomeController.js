@@ -10,7 +10,7 @@ import { AuthService } from '../services/AuthService.js';
 import { HomeView } from '../views/HomeView.js';
 import { DiarioModel } from '../models/DiarioModel.js';
 import { VitoriaPequenaModel } from '../models/VitoriaPequenaModel.js';
-import { CHECK_STATUS } from '../config/constants.js';
+import { CHECK_STATUS, STREAK_ESTADO } from '../config/constants.js';
 import { FrequencyUtils } from '../config/frequencyUtils.js';
 
 export const HomeController = {
@@ -28,6 +28,25 @@ export const HomeController = {
       for (const comp of HomeController._compromissos) {
         const check = await CheckModel.getTodayCheck(comp.id, today);
         HomeController._todayChecks[comp.id] = check;
+        
+        // Lazy Streak Verification: if the DB says it's active but time has passed, verify it.
+        if (comp.streak_atual > 0 || comp.streak_estado !== STREAK_ESTADO.ZERADO) {
+           const recentChecks = await CheckModel.listRecent(comp.id, 14);
+           // We convert to map for the service
+           const map = new Map();
+           recentChecks.forEach(c => map.set(c.data, c));
+           
+           const testResult = StreakService.calcular(map, today, comp);
+           if (testResult.estado === STREAK_ESTADO.ZERADO) {
+              comp.streak_atual = 0;
+              comp.streak_estado = STREAK_ESTADO.ZERADO;
+              await CompromissoModel.updateStreakXP(comp.id, {
+                 streak_atual: 0,
+                 streak_estado: STREAK_ESTADO.ZERADO,
+                 xp_total: comp.xp_total
+              });
+           }
+        }
       }
 
       const diarioEntry = await DiarioModel.getToday(today);
