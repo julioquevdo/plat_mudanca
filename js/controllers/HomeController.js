@@ -32,11 +32,8 @@ export const HomeController = {
         // Lazy Streak Verification: if the DB says it's active but time has passed, verify it.
         if (comp.streak_atual > 0 || comp.streak_estado !== STREAK_ESTADO.ZERADO) {
            const recentChecks = await CheckModel.listRecent(comp.id, 14);
-           // We convert to map for the service
-           const map = new Map();
-           recentChecks.forEach(c => map.set(c.data, c));
            
-           const testResult = StreakService.calcular(map, today, comp);
+           const testResult = StreakService.calcular(recentChecks, today, comp);
            if (testResult.estado === STREAK_ESTADO.ZERADO) {
               comp.streak_atual = 0;
               comp.streak_estado = STREAK_ESTADO.ZERADO;
