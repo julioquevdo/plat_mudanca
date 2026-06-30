@@ -3,6 +3,7 @@
 // Language is always descriptive, never evaluative (RN11.1).
 
 import { CHECK_STATUS, DIAS_SEMANA } from '../config/constants.js';
+import { offsetDate } from '../config/dateUtils.js';
 
 export const RevisaoService = {
   /**
@@ -15,10 +16,16 @@ export const RevisaoService = {
     const cumpridos = relevantes.filter(c => c.status === CHECK_STATUS.CUMPRIDO).length;
     const taxa = total > 0 ? Math.round((cumpridos / total) * 100) : 0;
     const ordenados = [...relevantes].sort((a, b) => (a.data > b.data ? 1 : -1));
+    const firstCheckDate = ordenados[0]?.data;
     const retomadas = ordenados.reduce((acc, check, index) => {
-      const anterior = ordenados[index - 1];
-      if (check.status === CHECK_STATUS.CUMPRIDO && anterior?.status === CHECK_STATUS.NAO_CUMPRIDO) {
-        return acc + 1;
+      if (index === 0) return acc;
+      if (check.status === CHECK_STATUS.CUMPRIDO) {
+        const yesterday = offsetDate(check.data, -1);
+        const yesterdayCheck = ordenados.find(c => c.data === yesterday);
+        const yesterdayWasMissed = !yesterdayCheck || yesterdayCheck.status === CHECK_STATUS.NAO_CUMPRIDO;
+        if (yesterdayWasMissed && yesterday >= firstCheckDate) {
+          return acc + 1;
+        }
       }
       return acc;
     }, 0);

@@ -3,6 +3,7 @@
 
 import { CHECK_STATUS } from '../config/constants.js';
 import { todayLocal, formatDateLocal } from '../config/dateUtils.js';
+import { FrequencyUtils } from '../config/frequencyUtils.js';
 
 export const RitmoView = {
   showLoading() {
@@ -150,7 +151,7 @@ export const RitmoView = {
   },
 
   _summarizeDay(date, comps, checks, today) {
-    const expectedComps = comps.filter(comp => RitmoView._isExpectedOnDate(comp, date));
+    const expectedComps = comps.filter(comp => FrequencyUtils.isExpectedOnDate(comp, date));
     const doneChecks = checks.filter(c => c.data === date && c.status === CHECK_STATUS.CUMPRIDO);
     const missedChecks = checks.filter(c => c.data === date && c.status === CHECK_STATUS.NAO_CUMPRIDO);
     const doneIds = new Set(doneChecks.map(c => c.compromisso_id));
@@ -332,7 +333,7 @@ export const RitmoView = {
     // plotted instead, marking whether it was completed that day.
     const isFixedSchedule = comp.frequencia_tipo === 'diaria' || comp.frequencia_tipo === 'diasSemana';
     const points = allDates
-      .filter(date => isFixedSchedule ? RitmoView._isExpectedOnDate(comp, date) : RitmoView._isCompActiveOnDate(comp, date))
+      .filter(date => isFixedSchedule ? FrequencyUtils.isExpectedOnDate(comp, date) : FrequencyUtils.isCompActiveOnDate(comp, date))
       .map(date => {
         const done = checks.some(c =>
           c.compromisso_id === comp.id &&
@@ -582,36 +583,12 @@ export const RitmoView = {
     `;
   },
 
-  _isExpectedOnDate(comp, dateStr) {
-    if (!RitmoView._isCompActiveOnDate(comp, dateStr)) return false;
-    const weekday = new Date(`${dateStr}T00:00:00`).getDay();
-    if (comp.frequencia_tipo === 'diaria') return true;
-    if (comp.frequencia_tipo === 'diasSemana') {
-      return RitmoView._normalizeWeekdays(comp.frequencia_dias).includes(weekday);
-    }
-    return false;
-  },
-
   _expectedCountInRange(comp, start, end) {
     if (comp.frequencia_tipo === 'xVezesSemana') {
-      const activeDays = RitmoView._dateRange(start, end).filter(date => RitmoView._isCompActiveOnDate(comp, date)).length;
+      const activeDays = RitmoView._dateRange(start, end).filter(date => FrequencyUtils.isCompActiveOnDate(comp, date)).length;
       return Math.ceil((activeDays / 7) * (comp.frequencia_vezes || 1));
     }
-    return RitmoView._dateRange(start, end).filter(date => RitmoView._isExpectedOnDate(comp, date)).length;
-  },
-
-  _isCompActiveOnDate(comp, dateStr) {
-    if (comp.criado_em && dateStr < comp.criado_em.split('T')[0]) return false;
-    if (comp.pausado_ate && dateStr <= comp.pausado_ate) return false;
-    return true;
-  },
-
-  _normalizeWeekdays(value) {
-    if (Array.isArray(value)) return value.map(Number);
-    if (typeof value === 'string') {
-      return value.replace(/[{}[\]]/g, '').split(',').map(Number).filter(Number.isFinite);
-    }
-    return [];
+    return RitmoView._dateRange(start, end).filter(date => FrequencyUtils.isExpectedOnDate(comp, date)).length;
   },
 
   _buildWeekRanges(fromDate, toDate) {
@@ -688,9 +665,15 @@ export const RitmoView = {
   },
 
   _frequencyLabel(comp) {
-    if (comp.frequencia_tipo === 'diaria') return 'diaria';
-    if (comp.frequencia_tipo === 'diasSemana') return `${RitmoView._normalizeWeekdays(comp.frequencia_dias).length} dias/semana`;
-    return `${comp.frequencia_vezes || 1}x/semana`;
+    if (comp.frequencia_tipo === 'diaria') return 'Diario';
+    if (comp.frequencia_tipo === 'xVezesSemana') return `${comp.frequencia_vezes || 1}x por semana`;
+    if (comp.frequencia_tipo === 'diasSemana') {
+      const labels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+      const nums = FrequencyUtils.normalizeWeekdays(comp.frequencia_dias);
+      if (nums.length === 0) return 'Configuracao invalida';
+      return nums.map(n => labels[n]).join(', ');
+    }
+    return 'Diario';
   },
 
   _getCompName(comps, id) {

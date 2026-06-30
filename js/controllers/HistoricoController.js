@@ -29,6 +29,7 @@ export const HistoricoController = {
       const from = formatDateLocal(fromDate);
 
       const allChecks = await CheckModel.listByDateRange(user.id, filters.from ?? from, filters.to ?? to);
+      const diarios = await DiarioModel.listByDateRange(filters.from ?? from, filters.to ?? to);
 
       // Group checks by compromisso
       const checksPorCompromisso = {};
@@ -47,6 +48,7 @@ export const HistoricoController = {
         categorias: HistoricoController._categorias,
         checksPorCompromisso,
         allChecks,
+        diarios,
         from: filters.from ?? from,
         to: filters.to ?? to,
         onFilter: HistoricoController.init,

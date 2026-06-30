@@ -2,7 +2,7 @@
 // Orchestrates the home/dashboard view: checks for today, streak/XP updates.
 
 import { CompromissoModel } from '../models/CompromissoModel.js';
-import { todayLocal } from '../config/dateUtils.js';
+import { todayLocal, offsetDate } from '../config/dateUtils.js';
 import { CheckModel } from '../models/CheckModel.js';
 import { StreakService } from '../services/StreakService.js';
 import { XPService } from '../services/XPService.js';
@@ -11,6 +11,7 @@ import { HomeView } from '../views/HomeView.js';
 import { DiarioModel } from '../models/DiarioModel.js';
 import { VitoriaPequenaModel } from '../models/VitoriaPequenaModel.js';
 import { CHECK_STATUS } from '../config/constants.js';
+import { FrequencyUtils } from '../config/frequencyUtils.js';
 
 export const HomeController = {
   _compromissos: [],
@@ -70,16 +71,17 @@ export const HomeController = {
 
       const comp = HomeController._compromissos.find(c => c.id === compromissoId);
       const recentChecks = await CheckModel.listRecent(compromissoId, 90);
-      const streakResult = StreakService.calcular(recentChecks, HomeController._today());
+      const streakResult = StreakService.calcular(recentChecks, HomeController._today(), comp);
       const shouldAwardXP = status === 'cumprido' && existingCheck?.status !== 'cumprido';
       const newXP = XPService.calcularNovoXP(comp.xp_total, status, {
         diaRuim,
         shouldAward: shouldAwardXP,
       });
-      const previousCheck = [...recentChecks]
-        .filter(c => c.data < data)
-        .sort((a, b) => (a.data < b.data ? 1 : -1))[0];
-      const retomada = status === 'cumprido' && previousCheck?.status === 'naoCumprido';
+      const firstCheck = [...recentChecks].sort((a, b) => (a.data > b.data ? 1 : -1))[0];
+      const yesterday = offsetDate(data, -1);
+      const yesterdayCheck = recentChecks.find(c => c.data === yesterday);
+      const yesterdayWasMissed = !yesterdayCheck || yesterdayCheck.status === CHECK_STATUS.NAO_CUMPRIDO;
+      const retomada = status === 'cumprido' && firstCheck && yesterday >= firstCheck.data && yesterdayWasMissed;
 
       await CompromissoModel.updateStreakXP(compromissoId, {
         streak_atual: streakResult.valor,
@@ -106,8 +108,8 @@ export const HomeController = {
       status,
     });
     const recentChecks = await CheckModel.listRecent(compromissoId, 90);
-    const streakResult = StreakService.calcular(recentChecks, HomeController._today());
     const comp = HomeController._compromissos.find(c => c.id === compromissoId);
+    const streakResult = StreakService.calcular(recentChecks, HomeController._today(), comp);
     await CompromissoModel.updateStreakXP(compromissoId, {
       streak_atual: streakResult.valor,
       streak_estado: streakResult.estado,
@@ -140,22 +142,31 @@ export const HomeController = {
 
   async _buildTreeStats(compromissos) {
     const branches = [];
+    const today = HomeController._today();
 
     for (const comp of compromissos) {
       const checks = await CheckModel.listRecent(comp.id, 365);
       const ordered = [...checks].sort((a, b) => (a.data > b.data ? 1 : -1));
       const totalDone = ordered.filter(c => c.status === CHECK_STATUS.CUMPRIDO).length;
-      const totalMissed = ordered.filter(c => c.status === CHECK_STATUS.NAO_CUMPRIDO).length;
       const badDays = ordered.filter(c => c.dia_ruim).length;
+
+      const gaps = HomeController._getMissedSegments(ordered, today, comp);
+      const totalMissed = gaps.reduce((acc, gap) => acc + gap.days, 0);
+
+      const firstCheckDate = ordered[0]?.data;
       const retomadas = ordered.reduce((acc, check, index) => {
-        const previous = ordered[index - 1];
-        if (check.status === CHECK_STATUS.CUMPRIDO && previous?.status === CHECK_STATUS.NAO_CUMPRIDO) {
-          return acc + 1;
+        if (index === 0) return acc;
+        if (check.status === CHECK_STATUS.CUMPRIDO) {
+          const yesterday = offsetDate(check.data, -1);
+          const yesterdayCheck = ordered.find(c => c.data === yesterday);
+          const yesterdayWasMissed = !yesterdayCheck || yesterdayCheck.status === CHECK_STATUS.NAO_CUMPRIDO;
+          if (yesterdayWasMissed && yesterday >= firstCheckDate) {
+            return acc + 1;
+          }
         }
         return acc;
       }, 0);
 
-      const gaps = HomeController._getMissedSegments(ordered);
       const longestGap = gaps.reduce((max, gap) => Math.max(max, gap.days), 0);
       const currentGap = gaps[gaps.length - 1]?.isOpen ? gaps[gaps.length - 1].days : 0;
       const recentDone = ordered.filter(c => {
@@ -189,22 +200,40 @@ export const HomeController = {
     };
   },
 
-  _getMissedSegments(checks) {
+  _getMissedSegments(checks, today, comp) {
+    if (checks.length === 0) return [];
+
+    const startDateStr = checks[0].data;
+    const hasTodayCheck = checks.some(c => c.data === today);
+    const endDateStr = hasTodayCheck ? today : offsetDate(today, -1);
+
     const gaps = [];
     let current = null;
 
-    for (const check of checks) {
-      if (check.status === CHECK_STATUS.NAO_CUMPRIDO) {
+    let currentDateStr = startDateStr;
+    const checkMap = new Map(checks.map(c => [c.data, c]));
+
+    while (currentDateStr <= endDateStr) {
+      const check = checkMap.get(currentDateStr);
+      const isExpected = FrequencyUtils.isExpectedOnDate(comp, currentDateStr);
+      
+      const isMissed = (!check && isExpected) || (check && check.status === CHECK_STATUS.NAO_CUMPRIDO);
+
+      if (isMissed) {
         if (!current) {
-          current = { start: check.data, end: check.data, days: 0, isOpen: true };
+          current = { start: currentDateStr, end: currentDateStr, days: 0, isOpen: true };
         }
-        current.end = check.data;
+        current.end = currentDateStr;
         current.days += 1;
-      } else if (current) {
-        current.isOpen = false;
-        gaps.push(current);
-        current = null;
+      } else {
+        if (current) {
+          current.isOpen = false;
+          gaps.push(current);
+          current = null;
+        }
       }
+
+      currentDateStr = offsetDate(currentDateStr, 1);
     }
 
     if (current) {

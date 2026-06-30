@@ -1,89 +1,164 @@
 // Layer 3 — Services
-// Calculates streak state using the non-punitive protection rule:
-// A single missed day does NOT break the streak if the next day is completed.
+// Calculates strict streak state based on frequency configuration.
+// Supports daily, specific weekdays, and X times a week.
 //
-// Returns: { valor: number, estado: 'ativo' | 'pendente' | 'zerado' }
-//
-// Estado 'pendente': user failed today but tomorrow is still possible
-//   → no "0" is shown on the day of the failure (RN04.1)
+// Returns: { valor: number, estado: 'ativo' | 'zerado' }
 
 import { CHECK_STATUS, STREAK_ESTADO } from '../config/constants.js';
 import { formatDateLocal } from '../config/dateUtils.js';
+import { FrequencyUtils } from '../config/frequencyUtils.js';
 
 export const StreakService = {
   /**
    * Main calculation function.
    * @param {Array} checks - Sorted ascending by date. Each: { data: 'YYYY-MM-DD', status }
    * @param {string} today - 'YYYY-MM-DD'
+   * @param {Object} comp - Commitment configuration
    * @returns {{ valor: number, estado: string }}
    */
-  calcular(checks, today) {
+  calcular(checks, today, comp) {
     if (!checks || checks.length === 0) {
       return { valor: 0, estado: STREAK_ESTADO.ZERADO };
     }
 
-    // Work with sorted descending
-    const sorted = [...checks].sort((a, b) => (a.data < b.data ? 1 : -1));
-    const todayCheck = sorted.find(c => c.data === today);
+    const checkMap = new Map(checks.map(c => [c.data, c]));
+    
+    if (comp && comp.frequencia_tipo === 'xVezesSemana') {
+      return this._calcularStreakSemanal(checkMap, today, comp);
+    }
+    
+    return this._calcularStreakDiario(checkMap, today, comp);
+  },
 
-    // If today is not yet checked, check what happened yesterday
-    if (!todayCheck) {
-      const yesterday = StreakService._offsetDate(today, -1);
-      const yesterdayCheck = sorted.find(c => c.data === yesterday);
-      if (yesterdayCheck?.status === CHECK_STATUS.NAO_CUMPRIDO) {
-        // Yesterday was failed, today not yet checked → streak is PENDENTE
-        const streakBeforeYesterday = StreakService._countConsecutiveFrom(sorted, StreakService._offsetDate(yesterday, -1));
-        return { valor: streakBeforeYesterday, estado: STREAK_ESTADO.PENDENTE };
+  _calcularStreakDiario(checkMap, today, comp) {
+    const todayCheck = checkMap.get(today);
+
+    if (todayCheck) {
+      if (todayCheck.status === CHECK_STATUS.CUMPRIDO || todayCheck.status === CHECK_STATUS.PAUSADO) {
+        return { valor: this._countConsecutive(checkMap, today, comp), estado: STREAK_ESTADO.ATIVO };
+      } else {
+        return { valor: 0, estado: STREAK_ESTADO.ZERADO };
       }
-      // No check today and yesterday was fine → just count from most recent
-      return { valor: StreakService._countConsecutiveFrom(sorted, today), estado: STREAK_ESTADO.ATIVO };
     }
-
-    // Today IS checked
-    if (todayCheck.status === CHECK_STATUS.CUMPRIDO || todayCheck.status === CHECK_STATUS.PAUSADO) {
-      const valor = StreakService._countConsecutiveFrom(sorted, today);
-      return { valor, estado: STREAK_ESTADO.ATIVO };
+    
+    // Today not checked. Check backwards for the last expected day or fulfilled unexpected day.
+    let current = this._offsetDate(today, -1);
+    
+    while (true) {
+      const check = checkMap.get(current);
+      const isExpected = comp ? FrequencyUtils.isExpectedOnDate(comp, current) : true;
+      
+      if (check) {
+         if (check.status === CHECK_STATUS.CUMPRIDO || check.status === CHECK_STATUS.PAUSADO) {
+            return { valor: this._countConsecutive(checkMap, current, comp), estado: STREAK_ESTADO.ATIVO };
+         } else {
+            return { valor: 0, estado: STREAK_ESTADO.ZERADO };
+         }
+      } else {
+         if (isExpected) {
+            // Expected day has no check! Streak is broken.
+            return { valor: 0, estado: STREAK_ESTADO.ZERADO };
+         }
+      }
+      
+      current = this._offsetDate(current, -1);
+      // Safety break
+      if (comp && comp.criado_em && current < comp.criado_em.split('T')[0]) {
+         break;
+      }
+      if (!comp && new Date(today).getTime() - new Date(current).getTime() > 30 * 24 * 60 * 60 * 1000) {
+         break;
+      }
     }
+    
+    return { valor: 0, estado: STREAK_ESTADO.ZERADO };
+  },
 
-    // Today is naoCumprido → PENDENTE state (don't show 0 yet)
-    // The streak value shown is the count BEFORE today
-    const yesterday = StreakService._offsetDate(today, -1);
-    const valor = StreakService._countConsecutiveFrom(sorted, yesterday);
-    return { valor, estado: STREAK_ESTADO.PENDENTE };
+  _calcularStreakSemanal(checkMap, today, comp) {
+     const meta = comp.frequencia_vezes || 1;
+     let totalDiasCumpridos = 0;
+     
+     let currentWeek = FrequencyUtils.getCalendarWeekRange(today);
+     let isCurrentWeek = true;
+     let broken = false;
+     
+     while (!broken) {
+        if (comp.criado_em && currentWeek.end < comp.criado_em.split('T')[0]) {
+           break;
+        }
+        
+        let checksNaSemana = 0;
+        let d = currentWeek.start;
+        for (let i=0; i<7; i++) {
+           const check = checkMap.get(d);
+           if (check && (check.status === CHECK_STATUS.CUMPRIDO || check.status === CHECK_STATUS.PAUSADO)) {
+              checksNaSemana++;
+           }
+           d = this._offsetDate(d, 1);
+        }
+        
+        if (isCurrentWeek) {
+           if (checksNaSemana >= meta) {
+              totalDiasCumpridos += checksNaSemana;
+           } else {
+              let remaining = 0;
+              let temp = today;
+              while (temp <= currentWeek.end) {
+                 const c = checkMap.get(temp);
+                 if (!c || (c.status !== CHECK_STATUS.CUMPRIDO && c.status !== CHECK_STATUS.PAUSADO && c.status !== CHECK_STATUS.NAO_CUMPRIDO)) {
+                    remaining++;
+                 }
+                 temp = this._offsetDate(temp, 1);
+              }
+              
+              if (checksNaSemana + remaining >= meta) {
+                 totalDiasCumpridos += checksNaSemana;
+              } else {
+                 return { valor: 0, estado: STREAK_ESTADO.ZERADO };
+              }
+           }
+           isCurrentWeek = false;
+        } else {
+           if (checksNaSemana >= meta) {
+              totalDiasCumpridos += checksNaSemana;
+           } else {
+              broken = true;
+           }
+        }
+        
+        const prevSunday = this._offsetDate(currentWeek.start, -1);
+        currentWeek = FrequencyUtils.getCalendarWeekRange(prevSunday);
+     }
+     
+     return { 
+        valor: totalDiasCumpridos, 
+        estado: totalDiasCumpridos > 0 ? STREAK_ESTADO.ATIVO : STREAK_ESTADO.ZERADO 
+     };
   },
 
   /**
-   * Counts consecutive 'cumprido' or 'pausado' days going backwards from a date.
-   * A single 'naoCumprido' gap is allowed if the surrounding days are cumprido.
+   * Counts strictly consecutive 'cumprido' or 'pausado' days going backwards from a date.
+   * Days that are unexpected and unrecorded are skipped.
    */
-  _countConsecutiveFrom(sortedDesc, fromDate) {
+  _countConsecutive(checkMap, fromDate, comp) {
     let count = 0;
     let current = fromDate;
-    let skippedOnce = false;
-
+    
+    // Safety limit of 365 days
     for (let i = 0; i < 365; i++) {
-      const check = sortedDesc.find(c => c.data === current);
-      if (!check) {
-        // No check for this date — could be future or just never tracked
-        // If we haven't started counting yet, move back one more day to find the start
-        if (count === 0) {
-          current = StreakService._offsetDate(current, -1);
-          continue;
-        }
-        break;
-      }
-      if (check.status === CHECK_STATUS.CUMPRIDO || check.status === CHECK_STATUS.PAUSADO) {
-        count++;
-        skippedOnce = false; // gap-and-recover resets the used skip
-      } else if (check.status === CHECK_STATUS.NAO_CUMPRIDO && !skippedOnce && count > 0) {
-        // Protection: one gap is forgivable if surrounded by cumprido
-        // Look ahead (next day in desc = previous day chronologically)
-        skippedOnce = true;
-        // Don't break — allow the streak to continue through this gap
+      const check = checkMap.get(current);
+      const isExpected = comp ? FrequencyUtils.isExpectedOnDate(comp, current) : true;
+      
+      if (check && (check.status === CHECK_STATUS.CUMPRIDO || check.status === CHECK_STATUS.PAUSADO)) {
+        count++; // Counts even if unexpected, rewarding extra effort
+        current = this._offsetDate(current, -1);
+      } else if (!check && !isExpected) {
+        // Safe to skip
+        current = this._offsetDate(current, -1);
       } else {
+        // Found a gap or explicit naoCumprido
         break;
       }
-      current = StreakService._offsetDate(current, -1);
     }
     return count;
   },

@@ -40,7 +40,7 @@ export const HistoricoView = {
   // Render principal
   // -----------------------------------------------------------------------
 
-  render({ compromissos, categorias, checksPorCompromisso, allChecks = [], from, to, onFilter, onExport, onExportDiario }) {
+  render({ compromissos, categorias, checksPorCompromisso, allChecks = [], diarios = [], from, to, onFilter, onExport, onExportDiario }) {
     const app = document.getElementById('router-outlet');
     const dates = HistoricoView._dateRange(from, to);
 
@@ -50,7 +50,7 @@ export const HistoricoView = {
     const pontosQueda = HistoricoView._calcularPontosQueda(allChecks);
     const streaks = HistoricoView._calcularStreaks(compromissos, checksPorCompromisso);
     const padraoDiaSemana = HistoricoView._calcularPadraoDiaSemana(allChecks);
-    const timelineLogs = HistoricoView._buildTimelineLogs(compromissos, checksPorCompromisso);
+    const timelineLogs = HistoricoView._buildTimelineLogs(compromissos, checksPorCompromisso, diarios);
 
     let timelineVisibleCount = Math.min(TIMELINE_PAGE_SIZE, timelineLogs.length);
 
@@ -347,11 +347,11 @@ export const HistoricoView = {
       const d = new Date(`${log.date}T00:00:00`).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 
       return `
-        <div class="timeline-card glass">
+        <div class="timeline-card glass ${log.isDiarioLivre ? 'timeline-diario' : ''}">
           <div class="timeline-meta">
             <span class="timeline-date">${d}</span>
             <div class="timeline-habit-badge">
-              <span class="category-indicator" style="background-color: ${log.color}"></span>
+              ${log.isDiarioLivre ? `<span class="category-indicator" style="background-color: transparent">📖</span>` : `<span class="category-indicator" style="background-color: ${log.color}"></span>`}
               <span>${log.habit}</span>
             </div>
           </div>
@@ -379,7 +379,7 @@ export const HistoricoView = {
     `;
   },
 
-  _buildTimelineLogs(comps, checksMap) {
+  _buildTimelineLogs(comps, checksMap, diarios = []) {
     const logs = [];
     for (const comp of comps) {
       const checks = checksMap[comp.id] || [];
@@ -391,10 +391,22 @@ export const HistoricoView = {
             color: comp.categorias?.cor || '#6A9F7E',
             sensacao: c.sensacao,
             contexto: c.contexto,
+            isDiarioLivre: false
           });
         }
       });
     }
+
+    diarios.forEach(d => {
+      logs.push({
+        date: d.data,
+        habit: 'Diario Livre',
+        color: '#6c757d',
+        contexto: d.conteudo,
+        isDiarioLivre: true
+      });
+    });
+
     return logs.sort((a, b) => (a.date < b.date ? 1 : -1));
   },
 
